@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DevOS Seed</title>
+  <title>DevOS Phase 2</title>
   <style>
     :root {
       --bg: #f0f0f0;
@@ -71,7 +71,7 @@
     const plugins = {};
     const tasks = [];
 
-    // 🧩 Plugin Loader
+    // 🧩 Plugin Loader (unsafe eval)
     async function loadPlugin(manifest) {
       try {
         const res = await fetch(manifest.url);
@@ -83,6 +83,16 @@
       } catch (err) {
         console.error(`❌ Failed to load plugin: ${manifest.name}`, err);
       }
+    }
+
+    // 🛡️ Sandboxed Plugin Loader (iframe)
+    function sandboxPlugin(manifest) {
+      const iframe = document.createElement('iframe');
+      iframe.src = manifest.url;
+      iframe.style.display = 'none';
+      iframe.sandbox = 'allow-scripts';
+      document.body.appendChild(iframe);
+      console.log(`🛡️ Sandboxed plugin loaded: ${manifest.name}`);
     }
 
     // ⚙️ Task Engine
@@ -102,6 +112,32 @@
       document.body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
     }
 
+    // 🧠 Reactive State
+    const State = {
+      data: {},
+      listeners: [],
+      set(key, value) {
+        this.data[key] = value;
+        this.listeners.forEach(fn => fn(this.data));
+      },
+      subscribe(fn) {
+        this.listeners.push(fn);
+        fn(this.data);
+      }
+    };
+
+    // 🧩 Component Registry
+    const ComponentRegistry = {
+      components: {},
+      register(name, renderFn) {
+        this.components[name] = renderFn;
+      },
+      render(name, props = {}) {
+        if (!this.components[name]) return document.createTextNode(`Missing: ${name}`);
+        return this.components[name](props);
+      }
+    };
+
     // 📝 Manifest Editor
     function renderManifestEditor() {
       const container = document.createElement('div');
@@ -119,7 +155,7 @@
       try {
         const manifest = JSON.parse(raw);
         localStorage.setItem(`plugin-${manifest.name}`, raw);
-        loadPlugin(manifest);
+        loadPlugin(manifest); // or sandboxPlugin(manifest)
       } catch (err) {
         alert('Invalid manifest JSON');
       }
@@ -138,11 +174,37 @@
       });
     }
 
+    // 🌐 Remote Plugin Discovery
+    async function discoverPlugins(url) {
+      try {
+        const res = await fetch(url);
+        const list = await res.json();
+        list.forEach(loadPlugin); // or sandboxPlugin
+      } catch (err) {
+        console.error('Discovery failed:', err);
+      }
+    }
+
+    // 🧪 Sample Component
+    ComponentRegistry.register('card', ({ title, content }) => {
+      const div = document.createElement('div');
+      div.className = 'plugin-box';
+      div.innerHTML = `<h3>${title}</h3><p>${content}</p>`;
+      return div;
+    });
+
     // 🚀 Bootstrapping
     window.addEventListener('DOMContentLoaded', () => {
       renderManifestEditor();
+      document.getElementById('app').appendChild(
+        ComponentRegistry.render('card', {
+          title: 'Welcome to DevOS',
+          content: 'Phase 2 is live. Plugins, tasks, and components are ready.'
+        })
+      );
       runTasks();
       loadStoredManifests();
+      // Optional: discoverPlugins('https://yourdomain.com/plugin-manifest.json');
     });
   </script>
 </body>
