@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevOS Seed</title>
+  <style>
+    :root {
+      --bg: #f0f0f0;
+      --fg: #222;
+      --accent: #0078d7;
+    }
+    [data-theme="dark"] {
+      --bg: #1e1e1e;
+      --fg: #ddd;
+      --accent: #00b0ff;
+    }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 0.5rem 1rem;
+      background: var(--accent);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #app {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: auto;
+      padding: 1rem;
+    }
+    button {
+      background: none;
+      border: 1px solid white;
+      color: white;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 0.5rem;
+      font-family: monospace;
+    }
+    .plugin-box {
+      padding: 1rem;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>DevOS</strong>
+    <button onclick="toggleTheme()">Toggle Theme</button>
+  </header>
+  <div id="app"></div>
+
+  <script>
+    const plugins = {};
+    const tasks = [];
+
+    // 🧩 Plugin Loader
+    async function loadPlugin(manifest) {
+      try {
+        const res = await fetch(manifest.url);
+        const code = await res.text();
+        const module = new Function('app', 'tasks', code);
+        module(document.getElementById('app'), tasks);
+        plugins[manifest.name] = manifest;
+        console.log(`✅ Loaded plugin: ${manifest.name}`);
+      } catch (err) {
+        console.error(`❌ Failed to load plugin: ${manifest.name}`, err);
+      }
+    }
+
+    // ⚙️ Task Engine
+    function runTasks() {
+      tasks.forEach(task => {
+        try {
+          task();
+        } catch (err) {
+          console.error('Task error:', err);
+        }
+      });
+    }
+
+    // 🌗 Theme Toggle
+    function toggleTheme() {
+      const current = document.body.getAttribute('data-theme');
+      document.body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+    }
+
+    // 📝 Manifest Editor
+    function renderManifestEditor() {
+      const container = document.createElement('div');
+      container.className = 'plugin-box';
+      container.innerHTML = `
+        <h3>Plugin Manifest Editor</h3>
+        <textarea id="manifestInput">{ "name": "hello-world", "url": "https://example.com/plugins/hello-world.js" }</textarea>
+        <button onclick="saveManifest()">Save & Load Plugin</button>
+      `;
+      document.getElementById('app').appendChild(container);
+    }
+
+    function saveManifest() {
+      const raw = document.getElementById('manifestInput').value;
+      try {
+        const manifest = JSON.parse(raw);
+        localStorage.setItem(`plugin-${manifest.name}`, raw);
+        loadPlugin(manifest);
+      } catch (err) {
+        alert('Invalid manifest JSON');
+      }
+    }
+
+    function loadStoredManifests() {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('plugin-')) {
+          try {
+            const manifest = JSON.parse(localStorage.getItem(key));
+            loadPlugin(manifest);
+          } catch (err) {
+            console.warn('Failed to load stored plugin:', key);
+          }
+        }
+      });
+    }
+
+    // 🚀 Bootstrapping
+    window.addEventListener('DOMContentLoaded', () => {
+      renderManifestEditor();
+      runTasks();
+      loadStoredManifests();
+    });
+  </script>
+</body>
+</html>
